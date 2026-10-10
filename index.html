@@ -145,6 +145,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .switch[aria-checked="true"]{background:var(--ok)}
 .switch[aria-checked="true"]::after{transform:translateX(20px)}
 .field{display:flex;align-items:center;gap:8px}
+.field.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .field input{width:100%;font-size:17px;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 12px;min-height:46px}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
@@ -197,6 +198,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   <div class="grow"><div class="t" id="timerT">0:00</div><div class="lbl" id="timerL">Descanso</div></div>
   <button type="button" data-action="timer-add">+15 s</button>
   <button type="button" data-action="timer-stop">Saltar</button>
+  <button type="button" data-action="guided-stop" id="gstop" hidden>Terminar</button>
 </div>
 
 <div class="scrim" id="scrim" data-action="close-sheet"></div>
@@ -256,7 +258,8 @@ const DAYS = {
     {id:"lat-maq",n:"Elevaciones laterales en máquina o polea",s:[3,4],r:[12,20],rir:[0,1],rest:90,inc:1},
     {id:"curl-bayes",n:"Curl bayesiano en polea",note:"O predicador",s:[2,3],r:[10,15],rir:[0,1],rest:90,inc:2.5},
     {id:"ext-tri-cabeza",n:"Extensión de tríceps sobre la cabeza",s:[2,3],r:[10,15],rir:[0,1],rest:90,inc:2.5},
-    {id:"pajaros",n:"Pájaros en máquina",s:[2,2],r:[15,20],rir:[0,1],rest:90,inc:2.5}
+    {id:"pajaros",n:"Pájaros en máquina",s:[2,2],r:[15,20],rir:[0,1],rest:90,inc:2.5},
+    {id:"side-bend",n:"Inclinación lateral en polea baja",note:"Cable side bend. Cable casi vertical, sin rozarte; pelvis quieta, sin girar; exhala al subir. Alternativa: crunch lateral en polea alta",s:[2,3],r:[12,15],repLabel:"12–15 por lado",rir:[1,2],rest:90,inc:2.5}
   ]}
 };
 const ORDER = ["A","PA","B","PB","C"];
@@ -309,13 +312,13 @@ const LS_P="entrenador.profile.v1", LS_W="entrenador.workouts.v1";
 function mergeProfile(r,l){
   const newer=(l.updated||0)>(r.updated||0)?l:r, older=newer===l?r:l;
   const out=Object.assign(defaultProfile(),JSON.parse(JSON.stringify(newer)));
-  ["body","food","health"].forEach(k=>{out[k]=Object.assign({},older[k]||{},newer[k]||{});});
+  ["body","food","health","cardio"].forEach(k=>{out[k]=Object.assign({},older[k]||{},newer[k]||{});});
   out.photos=[...new Set([...(r.photos||[]),...(l.photos||[])])].sort();
   out.settings=Object.assign(defaultProfile().settings,older.settings||{},newer.settings||{});
   out.updated=Math.max(r.updated||0,l.updated||0);
   return out;
 }
-function defaultProfile(){return {settings:{start:mondayOf(today()),fullCycle2:true},body:{},food:{},health:{},photos:[],updated:0};}
+function defaultProfile(){return {settings:{start:mondayOf(today()),fullCycle2:true},body:{},food:{},health:{},cardio:{},photos:[],updated:0};}
 const Store = {
   profile: defaultProfile(), workouts:{}, mode:"local", pRef:null, wCol:null, chains:{}, timers:{},
   loadLocal(){
@@ -462,6 +465,55 @@ function canExtend(wi){const e=Store.profile.settings.ext;return !(e&&e.cycle===
 function deloadBtn(){const wi=weekInfo(today());return (!wi.before&&wi.week>=2&&wi.week<=5)?' <button type="button" class="btn secondary" style="margin-top:8px;min-height:38px;padding:8px 12px" data-action="deload-now">Adelantar la descarga a esta semana</button>':"";}
 function countWeek(dateS,key){const m=mondayOf(dateS);let n=0;for(let i=0;i<7;i++){const f=Store.profile.food[addDays(m,i)];if(f&&f[key])n++;}return n;}
 
+
+/* ============ CARDIO ============ */
+const FCMAX=187;
+const ZONE={mod:[122,140],int:[168,178],rec:131};
+const MODS={
+  caminadora:{n:"Caminadora inclinada",mod:"Pendiente 8–12 % a 5–6 km/h, sin sujetarte de los barandales.",int:"Bloques de 4 min: pendiente 12–15 % a 6–6,5 km/h. Recuperación de 3 min: pendiente 3–5 % a paso cómodo."},
+  eliptica:{n:"Elíptica",mod:"Resistencia media y ritmo constante.",int:"Bloques de 4 min: sube resistencia y cadencia. Recuperación: resistencia baja y ritmo suave."},
+  escaleras:{n:"Escaleras / escaladora",mod:"Paso tranquilo y constante, sin sujetarte.",int:"Bloques de 4 min: ritmo rápido sin sujetarte. Recuperación: paso lento.",legs:true},
+  boxeo:{n:"Saco de boxeo",int:"Rounds de 4 min golpeando a ritmo intenso, exhalando en cada golpe y con pies ligeros (sin saltar todo el tiempo). Recuperación: caminar o golpes muy suaves. Usa vendas y guantes."},
+  correr:{n:"Correr",mod:"Trote suave en el que puedas hablar; máximo 30 min.",int:"Bloques de 4 min: carrera fuerte. Recuperación: 3 min caminando.",run:true,legs:true}
+};
+const CARDIO_DAYS={3:{type:"mod",mods:["caminadora","eliptica"]},6:{type:"int",mods:["caminadora","eliptica","escaleras","boxeo","correr"]},0:{type:"mod",mods:["caminadora","eliptica","escaleras","correr"]}};
+function cardioAll(){return Store.profile.cardio||(Store.profile.cardio={});}
+function cardioPlan(dateS){
+  const c=CARDIO_DAYS[parseD(dateS).getDay()];if(!c)return null;
+  const wi=weekInfo(dateS);
+  if(c.type==="int"&&(wi.before||wi.phase!=="completo"))return null;
+  const firstInt=c.type==="int"&&!Object.entries(cardioAll()).some(([d,x])=>d<dateS&&x&&x.done&&x.type==="int");
+  return {type:c.type,mods:c.mods,reps:firstInt?3:4};
+}
+function intMinutes(reps){return 15+reps*7-3;}
+function runsThisWeek(dateS,exclude){const m=mondayOf(dateS);let n=0;for(let i=0;i<7;i++){const d=addDays(m,i);if(d===exclude)continue;const r=cardioAll()[d];if(r&&r.done&&r.mod==="correr")n++;}return n;}
+function cardioWeek(dateS){const m=mondayOf(dateS);let min=0,n=0;for(let i=0;i<7;i++){const r=cardioAll()[addDays(m,i)];if(r&&r.done){n++;min+=+r.min||0;}}return {min,n};}
+function cardioTarget(dateS){let n=0;const m=mondayOf(dateS);for(let i=0;i<7;i++)if(cardioPlan(addDays(m,i)))n++;return n;}
+function stepsAvg(endS){const v=[];for(let i=0;i<7;i++){const b=Store.profile.body[addDays(endS,-i)];if(b&&b.steps!=null&&b.steps!=="")v.push(+b.steps);}return v.length>=3?v.reduce((a,b)=>a+b,0)/v.length:null;}
+function renderCardio(t){
+  const p=cardioPlan(t);if(!p)return "";
+  const r=cardioAll()[t]||{};
+  const mod=p.mods.includes(r.mod)?r.mod:p.mods[0];
+  const M=MODS[mod], isInt=p.type==="int";
+  const runOther=runsThisWeek(t,t);
+  let h='<h2>Cardio</h2><section class="ex" aria-label="Cardio"><div class="ex-h"><div class="ex-name">'+(isInt?"Intervalos "+p.reps+"×4 (≈ "+intMinutes(p.reps)+" min)":"Cardio moderado · 30–40 min")+'</div>'+
+    '<div class="ex-meta">'+(isInt?'<span>Bloques: <b>'+ZONE.int[0]+'–'+ZONE.int[1]+' lpm</b></span><span>Recuperación: <b>≈ '+ZONE.rec+' lpm</b></span>':'<span>Objetivo: <b>'+ZONE.mod[0]+'–'+ZONE.mod[1]+' lpm</b></span><span>Debes poder hablar en frases</span>')+'</div></div>'+
+    '<div style="padding:0 14px"><div class="seg" role="group" aria-label="Modalidad">'+p.mods.map(k=>'<button type="button" data-action="cardio-mod" data-date="'+t+'" data-mod="'+k+'" aria-pressed="'+(k===mod)+'">'+esc(MODS[k].n)+'</button>').join("")+'</div></div>'+
+    '<div class="coach">'+esc(isInt?M.int:M.mod)+(isInt?" Antes, 10 min de calentamiento suave; al final, 5 min de enfriamiento."+(p.reps===3?" Primera sesión de intervalos: hoy son 3 bloques en lugar de 4.":""):"")+'</div>';
+  if(M.run&&runOther>=1)h+='<div class="coach" style="background:var(--warn-soft)">Ya corriste esta semana. El máximo es 1 vez por semana: hoy usa otra modalidad.</div>';
+  if(M.run)h+='<div class="small" style="padding:8px 14px 0">Solo agua y al menos 2–3 h después de comer. Si aparece reflujo, cambia a caminadora inclinada.</div>';
+  if(M.legs&&p.type==="mod")h+='<div class="small" style="padding:8px 14px 0">Carga más las piernas: mantén un ritmo realmente suave.</div>';
+  if(isInt)h+='<div style="padding:10px 14px 0"><button type="button" class="btn secondary block" data-action="guided" data-reps="'+p.reps+'">Iniciar '+p.reps+'×4 guiado</button></div>';
+  h+='<div class="sets"><div class="field" style="padding:6px"><label class="grow"><span class="small">Minutos</span><input inputmode="numeric" aria-label="Minutos de cardio" data-cardio="min" data-date="'+t+'" value="'+esc(r.min??"")+'" placeholder="'+(isInt?intMinutes(p.reps):"35")+'"></label><label class="grow"><span class="small">FC media (opcional)</span><input inputmode="numeric" aria-label="Frecuencia cardiaca media" data-cardio="hr" data-date="'+t+'" value="'+esc(r.hr??"")+'" placeholder="lpm"></label></div>'+
+    '<button type="button" class="btn block'+(r.done?" secondary":"")+'" style="margin:6px 6px 0;width:calc(100% - 12px)" data-action="cardio-done" data-date="'+t+'" data-type="'+p.type+'" data-mod="'+mod+'" data-reps="'+p.reps+'">'+(r.done?"Cardio registrado ✓ (toca para deshacer)":"Marcar cardio como hecho")+'</button></div></section>';
+  return h;
+}
+function dayLabel(d,k){
+  const p=cardioPlan(d);
+  if(k)return DAYS[k].name.replace("Torso ","T").replace("Pierna ","P")+(p?"+4×4":"");
+  return p?"Cardio":"—";
+}
+
 /* ============ ESTADO DE LA UI ============ */
 const UI={tab:"hoy",day:null,foodDate:today(),exSel:null};
 
@@ -509,10 +561,11 @@ function renderHoy(){
   if(!day){
     const next=nextSession(t);
     h+='<div class="group" style="margin-top:10px"><div class="row"><h3>Día de descanso</h3><p class="small" style="margin:4px 0 0">Recuperar también es entrenar. Próxima sesión: '+esc(next)+'.</p></div>'+
-      '<div class="row small">Opcional: caminata de 20–30 min o bicicleta suave, y 3–5 min de respiración diafragmática.</div></div>';
+      '<div class="row small">'+(cardioPlan(t)?"Hoy toca cardio: lo tienes más abajo.":"Opcional: una caminata tranquila y 3–5 min de respiración diafragmática.")+' Meta diaria: 8,000–10,000 pasos.</div></div>';
   }else{
     h+=renderSession(t,day,wi);
   }
+  h+=renderCardio(t);
   h+=quickBody(t);
   return h;
 }
@@ -566,7 +619,7 @@ function renderSession(t,day,wi){
 }
 function quickBody(t){
   const b=Store.profile.body[t]||{};
-  return '<h2>Registro rápido</h2><div class="group"><div class="row"><div class="field"><label class="grow"><span class="small">Peso</span><input inputmode="decimal" aria-label="Peso de hoy en kilogramos" data-body="w" data-date="'+t+'" value="'+esc(b.w??"")+'" placeholder="kg"></label><label class="grow"><span class="small">Cintura</span><input inputmode="decimal" aria-label="Cintura en centímetros" data-body="waist" data-date="'+t+'" value="'+esc(b.waist??"")+'" placeholder="cm"></label><label class="grow"><span class="small">Sueño</span><input inputmode="decimal" aria-label="Horas de sueño anoche" data-body="sleep" data-date="'+t+'" value="'+esc(b.sleep??"")+'" placeholder="h"></label></div><p class="small" style="margin:8px 0 0">Peso en ayunas, cintura una vez por semana y horas que dormiste anoche.</p></div></div>';
+  return '<h2>Registro rápido</h2><div class="group"><div class="row"><div class="field qgrid"><label class="grow"><span class="small">Peso</span><input inputmode="decimal" aria-label="Peso de hoy en kilogramos" data-body="w" data-date="'+t+'" value="'+esc(b.w??"")+'" placeholder="kg"></label><label class="grow"><span class="small">Cintura</span><input inputmode="decimal" aria-label="Cintura en centímetros" data-body="waist" data-date="'+t+'" value="'+esc(b.waist??"")+'" placeholder="cm"></label><label class="grow"><span class="small">Sueño</span><input inputmode="decimal" aria-label="Horas de sueño anoche" data-body="sleep" data-date="'+t+'" value="'+esc(b.sleep??"")+'" placeholder="h"></label><label class="grow"><span class="small">Pasos del día</span><input inputmode="numeric" aria-label="Pasos del día" data-body="steps" data-date="'+t+'" value="'+esc(b.steps??"")+'" placeholder="8,000–10,000"></label></div><p class="small" style="margin:8px 0 0">Peso en ayunas, cintura una vez por semana, horas que dormiste anoche y pasos (puedes anotarlos en la noche).</p></div></div>';
 }
 
 /* ---------- COMIDA ---------- */
@@ -640,7 +693,9 @@ function renderProgreso(){
     stat(lastC?fmtNum(lastC.v,1)+" cm":"—","Cintura"+(dC!=null?" ("+(dC>0?"+":"")+fmtNum(dC,1)+" cm en 2 sem)":""))+
     stat(sessW+" de 5","Sesiones esta semana")+
     stat(avgSleep(t)==null?"—":fmtNum(avgSleep(t),1)+" h","Sueño, promedio 7 días")+
-    stat(proteinAvg(t)==null?"—":fmtNum(proteinAvg(t),0)+" g","Proteína, promedio 7 días")+'</div>';
+    stat(proteinAvg(t)==null?"—":fmtNum(proteinAvg(t),0)+" g","Proteína, promedio 7 días")+
+    stat(cardioWeek(t).min+" min","Cardio esta semana ("+cardioWeek(t).n+" de "+cardioTarget(t)+" sesiones)")+
+    stat(stepsAvg(t)==null?"—":fmtNum(stepsAvg(t),0),"Pasos, promedio 7 días")+'</div>';
   h+='<h2>Lo que te recomiendo</h2><div class="stack">'+coachInsights(rate,dC,W,C).map(x=>'<div class="note '+x.cls+'">'+x.html+'</div>').join("")+'</div>';
   h+='<h2>Peso corporal</h2>';
   if(W.length>=2){
@@ -684,6 +739,9 @@ function coachInsights(rate,dC,W,C){
   if(sl!=null&&sl<7)out.push({cls:"warn",html:"<b>Duermes en promedio "+fmtNum(sl,1)+" h.</b> Por debajo de 7 h se resiente la recuperación y la testosterona. Es el ajuste con más impacto que puedes hacer fuera del gimnasio."});
   const pa=proteinAvg(today());
   if(pa!=null&&pa<120)out.push({cls:"warn",html:"<b>Tu proteína promedio es "+fmtNum(pa,0)+" g al día</b> (objetivo ≈ 140 g). Marca las comidas que haces en la pestaña Comida; si te falta alguna, el yogur griego o 2 huevos extra cubren la diferencia."});
+  const st=stepsAvg(today());
+  if(st!=null&&st<8000)out.push({cls:"",html:"<b>Promedias "+fmtNum(st,0)+" pasos al día.</b> El beneficio para la salud se estabiliza alrededor de 8,000–10,000 en menores de 60 años: suma una caminata de 15–20 min."});
+  if(runsThisWeek(today(),null)>1)out.push({cls:"warn",html:"<b>Corriste más de una vez esta semana.</b> Correr es la modalidad que más interfiere con la hipertrofia y la que más reflujo provoca: máximo 1 vez por semana."});
   const first=W.length?W[0].d:null;
   if(first&&daysBetween(first,today())>=56&&rate!=null&&Math.abs(rate)<0.1&&stalled.length>=2)out.push({cls:"",html:"<b>Revisión de 8 semanas:</b> peso estable y fuerza estancada. Según el plan, toca pasar a un superávit del 5 % (≈ +125 kcal)."});
   return out;
@@ -713,7 +771,7 @@ function renderSemana(){
   let h='<div class="top"><div><h1>Semana</h1></div></div><p class="sub">'+(wi.before?"Antes del inicio del mesociclo":"Semana "+wi.week+" de 6, "+PHASE_TXT[wi.phase].toLowerCase())+'</p>';
   h+='<div class="week">';
   for(let i=0;i<7;i++){const d=addDays(m,i),dd=parseD(d),k=WD_TO_DAY[dd.getDay()];const tr=ORDER.some(x=>{const w=Store.workouts[workoutId(d,x)];return w&&Object.values(w.sets).some(a=>a.some(s=>s.done));});
-    h+='<div class="'+(d===t?"today ":"")+(tr?"trained":"")+'">'+WD_SHORT[dd.getDay()]+'<b>'+dd.getDate()+'</b>'+(k?DAYS[k].name.replace("Torso ","T").replace("Pierna ","P"):"—")+'</div>';}
+    h+='<div class="'+(d===t?"today ":"")+(tr?"trained":"")+'">'+WD_SHORT[dd.getDay()]+'<b>'+dd.getDate()+'</b>'+dayLabel(d,k)+'</div>';}
   h+='</div>';
   ORDER.forEach(k=>{
     const D=DAYS[k];
@@ -721,6 +779,12 @@ function renderSemana(){
     D.ex.forEach(ex=>{h+='<div class="row"><div style="font-weight:500">'+esc(ex.n)+'</div><div class="small">'+(wi.before?ex.s[0]:setsFor(ex,wi))+' series × '+esc(ex.repLabel||range(ex.r))+', RIR '+range(wi.before?ex.rir:rirFor(ex,wi))+', descanso '+restLabel(ex.rest).toLowerCase()+(ex.note?". "+esc(ex.note):"")+'</div></div>';});
     h+='</div>';
   });
+  const satInt=!!cardioPlan(addDays(m,5));
+  h+='<h2>Cardio</h2><div class="group">'+
+    '<div class="row"><div style="font-weight:500">Miércoles · moderado 30–40 min</div><div class="small">Caminadora inclinada o elíptica · '+ZONE.mod[0]+'–'+ZONE.mod[1]+' lpm</div></div>'+
+    '<div class="row"><div style="font-weight:500">Sábado · intervalos 4×4 '+(satInt?"(esta semana sí)":"(solo en semanas de volumen completo)")+'</div><div class="small">Después de Torso C o ≥ 3 h más tarde · caminadora inclinada, elíptica, escaleras, saco de boxeo o correr · bloques '+ZONE.int[0]+'–'+ZONE.int[1]+' lpm</div></div>'+
+    '<div class="row"><div style="font-weight:500">Domingo · moderado 30–40 min</div><div class="small">Caminadora inclinada, elíptica, escaleras a ritmo lento o trote suave</div></div>'+
+    '<div class="row small">Todos los días: 8,000–10,000 pasos. Correr, máximo 1 vez por semana.</div></div>';
   return h;
 }
 
@@ -731,8 +795,12 @@ function renderGuia(){
   det("Cómo progresar",'<p><b>Doble progresión.</b> Trabaja dentro del rango de repeticiones con el RIR indicado. Cuando completes el tope del rango en todas las series, sube la carga lo mínimo posible y vuelve al extremo bajo del rango. La app te lo sugiere en cada ejercicio.</p><p><b>RIR</b> = repeticiones que te quedan en reserva (0 = fallo). Compuestos a 1–2, nunca al fallo; máquinas y aislamientos a 0–1.</p><p><b>Descansos:</b> mínimo 90 s; 2–3 min en compuestos.</p><p><b>Calentamiento:</b> 2–3 series ligeras antes del primer compuesto; no cuentan.</p>')+
   det("Respiración y seguridad",'<p>Inhala al bajar, exhala durante el esfuerzo. Sin cinturón y sin pujar. Si necesitas aguantar el aire para terminar una repetición, la serie terminó.</p><p>Columna neutra, bajada controlada (≈ 2 s), sin rebotes. En la prensa, la pelvis siempre pegada al respaldo.</p><p>Al terminar: 3–5 min de respiración diafragmática, soltando abdomen y suelo pélvico.</p>')+
   det("Mesociclo de 6 semanas",'<div class="tbl"><table><tr><th>Semana</th><th>Series</th><th>RIR compuestos</th><th>RIR aislamientos</th></tr><tr><td>1</td><td>Inicial</td><td>2–3</td><td>1–2</td></tr><tr><td>2–3</td><td>Inicial</td><td>1–2</td><td>0–1</td></tr><tr><td>4</td><td>Completo</td><td>1–2</td><td>0–1</td></tr><tr><td>5</td><td>Completo</td><td>1–2</td><td>0</td></tr><tr><td>6</td><td>≈ 50 %, mismas cargas</td><td>3–4</td><td>2–3</td></tr></table></div><p class="small" style="margin-top:8px">En la semana 6, la pantalla Hoy te pregunta cómo empezar el siguiente ciclo y te deja alargar el bloque hasta 2 semanas si sigues progresando. Si tu rendimiento cae o marcas una señal de alerta, la app te ofrece adelantar la descarga.</p>')+
-  det("Volumen semanal por músculo",'<div class="tbl"><table><tr><th>Músculo</th><th class="num">Sem. 1–3</th><th class="num">Sem. 4–5</th></tr>'+[["Espalda",12,15],["Bíceps",12,14.5],["Deltoides lateral",10.5,13.5],["Tríceps",11.5,13],["Glúteos",10,12],["Pecho",10,11],["Cuádriceps",10,11],["Isquiotibiales",8.5,10.5],["Deltoides posterior",6.5,8],["Pantorrillas",6,8],["Core",6,6]].map(r=>'<tr><td>'+r[0]+'</td><td class="num">'+fmtNum(r[1])+'</td><td class="num">'+fmtNum(r[2])+'</td></tr>').join("")+'</table></div><p class="small" style="margin-top:8px">Series fraccionales: las indirectas cuentan 0,5.</p>')+
+  det("Volumen semanal por músculo",'<div class="tbl"><table><tr><th>Músculo</th><th class="num">Sem. 1–3</th><th class="num">Sem. 4–5</th></tr>'+[["Espalda",12,15],["Bíceps",12,14.5],["Deltoides lateral",10.5,13.5],["Tríceps",11.5,13],["Glúteos",10,12],["Pecho",10,11],["Cuádriceps",10,11],["Isquiotibiales",8.5,10.5],["Deltoides posterior",6.5,8],["Pantorrillas",6,8],["Core (abdomen y oblicuos)",8,9]].map(r=>'<tr><td>'+r[0]+'</td><td class="num">'+fmtNum(r[1])+'</td><td class="num">'+fmtNum(r[2])+'</td></tr>').join("")+'</table></div><p class="small" style="margin-top:8px">Series fraccionales: las indirectas cuentan 0,5.</p>')+
   det("Señales de alerta",'<ul style="margin:0;padding-left:20px">'+SIGNS.map(s=>'<li>'+esc(s.t)+'</li>').join("")+'</ul><p class="small" style="margin-top:8px">Ante cualquiera: baja la carga en pierna y adelanta la descarga. Valoraciones recomendadas: urólogo (varicocele) y fisioterapeuta de suelo pélvico si hay síntomas urinarios. Dolor en el costado hacia la ingle o sangre en la orina: consulta de inmediato.</p>')+
+  det("Cardio",'<div class="tbl"><table><tr><th>Semanas</th><th>Días</th><th>Sesiones</th></tr><tr><td>1–3</td><td>2</td><td>Mié y dom, moderado</td></tr><tr><td>4–5</td><td>3</td><td>Mié y dom moderado + sáb 4×4</td></tr><tr><td>6 (descarga)</td><td>2</td><td>Mié y dom, moderado</td></tr></table></div>'+
+    '<p style="margin-top:10px"><b>Intensidades</b> (FC máxima estimada ≈ '+FCMAX+' lpm): moderado '+ZONE.mod[0]+'–'+ZONE.mod[1]+' lpm, hablando en frases; intervalos '+ZONE.int[0]+'–'+ZONE.int[1]+' lpm, apenas un par de palabras al final de cada bloque. La fórmula puede fallar ± 10 lpm: guíate también por la sensación.</p>'+
+    '<div class="tbl"><table><tr><th>Modalidad</th><th>Moderado</th><th>4×4</th></tr><tr><td>Caminadora inclinada</td><td>Mié, dom</td><td>Sí</td></tr><tr><td>Elíptica</td><td>Mié, dom</td><td>Sí</td></tr><tr><td>Escaleras</td><td>Dom (lento)</td><td>Sí</td></tr><tr><td>Saco de boxeo</td><td>No</td><td>Sí</td></tr><tr><td>Correr</td><td>Dom (trote)</td><td>Sí</td></tr></table></div>'+
+    '<p style="margin-top:10px"><b>Reglas.</b> Correr máximo 1 vez por semana y nunca el miércoles. Solo agua durante el cardio y al menos 2 h después de una comida grande. Bicicleta descartada por la presión en el periné. Si se estancan tus cargas, duermes mal o aparece reflujo o una señal de alerta, baja a 2 días: miércoles moderado y sábado 4×4.</p>')+
   det("Nutrición en una línea",'<p>≈ 2,480 kcal, 140 g de proteína, patrón mediterráneo, nitratos a diario, pescado graso 2–3 veces por semana, 50 g de frutos secos, sin cafeína por el reflujo, y mucho agua. El detalle está en la pestaña Comida.</p>')+
   '</div>';
   h+='<h2>Documentos completos</h2><div class="group links"><a href="'+DOCS.train+'" target="_blank" rel="noopener">Programa de hipertrofia basado en evidencia</a><a href="'+DOCS.food+'" target="_blank" rel="noopener">Plan de alimentación</a></div>';
@@ -757,9 +825,17 @@ const Timer={end:0,total:0,iv:null,ctx:null,
   start(sec,label){if(!sec)return;this.total=sec*1000;this.end=Date.now()+this.total;$("#timerL").textContent=label||"Descanso";$("#timer").classList.add("show");this.ensureAudio();clearInterval(this.iv);this.iv=setInterval(()=>this.tick(),250);this.tick();},
   add(s){this.end+=s*1000;this.total+=s*1000;this.tick();},
   stop(){clearInterval(this.iv);$("#timer").classList.remove("show");},
-  tick(){const left=Math.max(0,this.end-Date.now());const s=Math.ceil(left/1000);$("#timerT").textContent=Math.floor(s/60)+":"+pad(s%60);$("#ringFg").setAttribute("stroke-dashoffset",(150.8*(1-left/this.total)).toFixed(1));if(left<=0){this.beep();this.stop();toast("Descanso terminado: siguiente serie");}},
+  tick(){const left=Math.max(0,this.end-Date.now());const s=Math.ceil(left/1000);$("#timerT").textContent=Math.floor(s/60)+":"+pad(s%60);$("#ringFg").setAttribute("stroke-dashoffset",(150.8*(1-left/this.total)).toFixed(1));if(left<=0){this.beep();if(Guided.active){Guided.next();return;}this.stop();toast("Descanso terminado: siguiente serie");}},
   ensureAudio(){try{if(!this.ctx){const C=window.AudioContext||window.webkitAudioContext;if(C)this.ctx=new C();}if(this.ctx&&this.ctx.state==="suspended")this.ctx.resume();}catch(e){}},
   beep(){try{if(!this.ctx)return;const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.frequency.value=880;o.connect(g);g.connect(this.ctx.destination);g.gain.setValueAtTime(.0001,this.ctx.currentTime);g.gain.exponentialRampToValueAtTime(.3,this.ctx.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,this.ctx.currentTime+.5);o.start();o.stop(this.ctx.currentTime+.55);}catch(e){}if(navigator.vibrate)navigator.vibrate([200,100,200]);}
+};
+
+
+const Guided={active:false,ph:[],i:0,
+  start(reps){const ph=[{s:600,l:"Calentamiento suave"}];for(let k=1;k<=reps;k++){ph.push({s:240,l:"Bloque "+k+" de "+reps+": intenso ("+ZONE.int[0]+"–"+ZONE.int[1]+" lpm)"});if(k<reps)ph.push({s:180,l:"Recuperación activa (≈ "+ZONE.rec+" lpm)"});}ph.push({s:300,l:"Enfriamiento suave"});
+    this.ph=ph;this.i=0;this.active=true;$('[data-action="timer-stop"]').textContent="Siguiente";$("#gstop").hidden=false;Timer.start(ph[0].s,ph[0].l);},
+  next(){this.i++;if(this.i>=this.ph.length){this.end(true);return;}const p=this.ph[this.i];Timer.start(p.s,p.l);},
+  end(done){this.active=false;Timer.stop();$('[data-action="timer-stop"]').textContent="Saltar";$("#gstop").hidden=true;if(done)toast("Intervalos terminados: registra tus minutos");}
 };
 
 /* ============ EVENTOS ============ */
@@ -780,7 +856,7 @@ document.addEventListener("click",async e=>{
     if(!s.done&&(s.reps===""||s.reps==null)){const ri=row.querySelector('[data-input="reps"]');toast("Anota las repeticiones antes de marcar la serie");if(ri)ri.focus();return;}
     s.done=!s.done;
     Store.touchWorkout(a.dataset.w);row.classList.toggle("done",s.done);a.setAttribute("aria-pressed",String(s.done));
-    if(s.done){const ex=findEx(w.day,a.dataset.ex);Timer.start(+a.dataset.rest,ex?"Descanso tras "+ex.n:"Descanso");}
+    if(s.done&&!Guided.active){const ex=findEx(w.day,a.dataset.ex);Timer.start(+a.dataset.rest,ex?"Descanso tras "+ex.n:"Descanso");}
     return;
   }
   if(act==="finish"){const w=Store.workouts[a.dataset.w];if(!w)return;w.finished=true;Store.touchWorkout(a.dataset.w);Timer.stop();
@@ -792,7 +868,18 @@ document.addEventListener("click",async e=>{
   if(act==="start-now"){Store.profile.settings.start=mondayOf(today());Store.touchProfile();render();toast("Mesociclo iniciado: semana 1");return;}
   if(act==="apply-start"){const v=document.getElementById("startd").value;if(!v){toast("Elige una fecha");return;}Store.profile.settings.start=mondayOf(v);Store.touchProfile();closeSheet();render();toast("Mesociclo desde el lunes "+fmtDateShort(Store.profile.settings.start));return;}
   if(act==="timer-add")return Timer.add(15);
-  if(act==="timer-stop")return Timer.stop();
+  if(act==="timer-stop"){if(Guided.active){Guided.next();return;}return Timer.stop();}
+  if(act==="guided-stop"){Guided.end(false);return;}
+  if(act==="guided"){Timer.ensureAudio();Guided.start(+a.dataset.reps);return;}
+  if(act==="cardio-mod"){const all=cardioAll();const r=all[a.dataset.date]||(all[a.dataset.date]={});r.mod=a.dataset.mod;Store.touchProfile();render();return;}
+  if(act==="cardio-done"){
+    const all=cardioAll(),d=a.dataset.date;const r=all[d]||(all[d]={});
+    r.done=!r.done;r.type=a.dataset.type;r.mod=a.dataset.mod;
+    if(r.done&&(r.min==null||r.min===""))r.min=a.dataset.type==="int"?intMinutes(+a.dataset.reps):35;
+    Store.touchProfile();render();
+    if(r.done)toast(r.mod==="correr"&&runsThisWeek(d,d)>=1?"Registrado. Ojo: ya llevas más de 1 carrera esta semana":"Cardio registrado: "+r.min+" min");
+    return;
+  }
   if(act==="food-prev"){UI.foodDate=addDays(UI.foodDate,-1);render();return;}
   if(act==="food-next"){if(UI.foodDate<today()){UI.foodDate=addDays(UI.foodDate,1);render();}return;}
   if(act==="meal"){const f=food(UI.foodDate);const i=+a.dataset.i;f.meals[i]=!f.meals[i];Store.touchProfile();render();return;}
@@ -835,6 +922,11 @@ document.addEventListener("input",e=>{
     if(v==="")delete f[t.dataset.foodExtra];else if(!isNaN(+v))f[t.dataset.foodExtra]=+v;
     Store.touchProfile();clearTimeout(window.__fx);window.__fx=setTimeout(()=>{const ae=document.activeElement;const k=ae&&ae.dataset?ae.dataset.foodExtra:null;render();if(k){const el=document.querySelector('[data-food-extra="'+k+'"]');if(el){el.focus();const L=el.value.length;try{el.setSelectionRange(L,L);}catch(_){}}}},700);
     return;
+  }
+  if(t.dataset.cardio){
+    const v=t.value.replace(",",".").trim();const all=cardioAll();const r=all[t.dataset.date]||(all[t.dataset.date]={});
+    if(v==="")delete r[t.dataset.cardio];else if(!isNaN(+v))r[t.dataset.cardio]=+v;
+    Store.touchProfile();return;
   }
   if(t.dataset.body){
     const v=t.value.replace(",",".").trim();const d=t.dataset.date;

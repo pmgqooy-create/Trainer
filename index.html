@@ -241,8 +241,8 @@ const DAYS = {
     {id:"aperturas",n:"Aperturas en polea o pec deck",s:[2,2],r:[12,15],rir:[0,1],rest:90,inc:2.5},
     {id:"lat-manc",n:"Elevaciones laterales con mancuernas",s:[3,4],r:[12,20],rir:[0,1],rest:90,inc:1,dbell:true},
     {id:"pajaros",n:"Pájaros en máquina",note:"Reverse pec deck",s:[2,3],r:[15,20],rir:[0,1],rest:90,inc:2.5},
-    {id:"curl-martillo",n:"Curl martillo",note:"Superserie: pasa directo al pushdown",s:[2,2],r:[10,15],rir:[0,1],rest:0,inc:1,dbell:true},
-    {id:"pushdown",n:"Pushdown de tríceps en polea",note:"Descansa al terminar la superserie",s:[2,2],r:[10,15],rir:[0,1],rest:90,inc:2.5}
+    {id:"curl-martillo",n:"Curl martillo",note:"Superserie: pasa directo al pushdown",keepNote:true,s:[2,2],r:[10,15],rir:[0,1],rest:0,inc:1,dbell:true},
+    {id:"pushdown",n:"Pushdown de tríceps en polea",note:"Descansa al terminar la superserie",keepNote:true,s:[2,2],r:[10,15],rir:[0,1],rest:90,inc:2.5}
   ]},
   PB:{name:"Pierna B", wd:5, ex:[
     {id:"bulgara",n:"Sentadilla búlgara con mancuernas",note:"Torso ligeramente inclinado",s:[3,3],r:[10,12],repLabel:"10–12 por pierna",rir:[1,2],rest:120,inc:1,dbell:true},
@@ -262,9 +262,87 @@ const DAYS = {
     {id:"side-bend",n:"Inclinación lateral en polea baja",note:"Cable side bend. Cable casi vertical, sin rozarte; pelvis quieta, sin girar; exhala al subir. Alternativa: crunch lateral en polea alta",s:[2,3],r:[12,15],repLabel:"12–15 por lado",rir:[1,2],rest:90,inc:2.5}
   ]}
 };
+
+/* Alternativas por ejercicio: mismo músculo, sin carga axial, sin posiciones planas o declinadas para pecho, compatibles con reflujo, suelo pélvico y varicocele */
+const A_={
+  pressInclMaq:{id:"press-incl-maq",n:"Press inclinado en máquina",inc:2.5},
+  pressInclSmith:{id:"press-incl-smith",n:"Press inclinado en Smith (30°)",inc:2.5},
+  pressPechoPolea:{id:"press-pecho-polea",n:"Press de pecho en polea, de pie o sentado",note:"Torso vertical; empuja a la altura del pecho",inc:2.5},
+  remoPechoMaq:{id:"remo-pecho-maq",n:"Remo en máquina con apoyo en pecho",inc:2.5},
+  remoMancIncl:{id:"remo-manc-incl",n:"Remo con mancuernas apoyado en banco inclinado",note:"Pecho apoyado en el respaldo a 30–45°",inc:1,dbell:true},
+  remoPoleaUni:{id:"remo-polea-uni",n:"Remo en polea a una mano",side:"brazo",inc:2.5},
+  jalonNeutro:{id:"jalon-neutro",n:"Jalón al pecho, agarre neutro",inc:2.5},
+  jalonMaq:{id:"jalon-maq",n:"Jalón en máquina (pulldown)",inc:2.5},
+  latPolea:{id:"lat-polea",n:"Elevaciones laterales en polea",inc:1},
+  latManc:{id:"lat-manc",n:"Elevaciones laterales con mancuernas",inc:1,dbell:true},
+  latMaq:{id:"lat-maq",n:"Elevaciones laterales en máquina",inc:1},
+  yRaise:{id:"y-raise",n:"Y-raise en polea",note:"Brazos en Y, ligeramente por delante del cuerpo",inc:1},
+  extTriMaq:{id:"ext-tri-maq",n:"Extensión de tríceps en máquina",inc:2.5},
+  facePull:{id:"face-pull",n:"Face pull en polea",note:"Cuerda a la altura de la cara, codos altos",inc:2.5},
+  pajarosPolea:{id:"pajaros-polea",n:"Pájaros en poleas cruzadas",inc:1},
+  pajarosMancIncl:{id:"pajaros-manc-incl",n:"Pájaros con mancuernas apoyado en banco inclinado",inc:1,dbell:true},
+  pullThrough:{id:"pull-through",n:"Pull-through en polea",note:"Bisagra de cadera de espaldas a la polea baja; sin redondear la espalda",inc:2.5},
+  talonesPrensa:{id:"talones-prensa",n:"Elevación de talones en prensa",inc:5},
+  curlFemTumbado:{id:"curl-fem-tumbado",n:"Curl femoral tumbado",inc:2.5},
+  curlFemPie:{id:"curl-fem-pie",n:"Curl femoral de pie a una pierna",side:"pierna",inc:2.5},
+  curlFemPolea:{id:"curl-fem-polea",n:"Curl femoral en polea de pie",side:"pierna",inc:2.5},
+  extCuadUni:{id:"ext-cuad-uni",n:"Extensión de cuádriceps a una pierna",side:"pierna",inc:2.5},
+  prensaPiesBajos:{id:"prensa-pies-bajos",n:"Prensa con pies bajos y juntos",note:"Enfatiza cuádriceps; pelvis pegada al respaldo",inc:5},
+  sissy:{id:"sissy-asist",n:"Sentadilla sissy asistida",note:"Sujétate con una mano; rango cómodo para las rodillas",inc:0}
+};
+const ALTS={
+  "press-pecho-maq":[{id:"press-pecho-conv",n:"Press de pecho en máquina convergente (tipo Hammer)",note:"Sentado, torso vertical",inc:2.5},A_.pressPechoPolea,{id:"press-incl-bajo-manc",n:"Press con mancuernas en banco inclinado bajo (15–30°)",note:"Nunca plano ni declinado",inc:1,dbell:true}],
+  "remo-pecho":[A_.remoPechoMaq,A_.remoMancIncl,{id:"remo-polea",n:"Remo en polea sentado",inc:2.5}],
+  "press-incl-manc":[A_.pressInclMaq,A_.pressInclSmith,{id:"press-incl-polea",n:"Press inclinado en polea",note:"Poleas bajas, empuja hacia arriba y al frente",inc:2.5}],
+  "jalon-prono":[A_.jalonNeutro,A_.jalonMaq,{id:"jalon-uni",n:"Jalón unilateral en polea",side:"brazo",inc:2.5}],
+  "lat-polea":[A_.latManc,A_.latMaq,A_.yRaise],
+  "curl-incl":[{id:"curl-bayes",n:"Curl bayesiano en polea",inc:2.5},{id:"curl-manc-pie",n:"Curl con mancuernas de pie",inc:1,dbell:true},{id:"curl-maq",n:"Curl en máquina",inc:2.5}],
+  "ext-tri-cabeza":[{id:"ext-tri-cabeza-manc",n:"Extensión de tríceps sobre la cabeza con mancuerna",note:"Sentado con respaldo, una mancuerna a dos manos",inc:1},A_.extTriMaq,{id:"pushdown",n:"Pushdown de tríceps en polea",inc:2.5}],
+  "prensa":[{id:"prensa-horiz",n:"Prensa horizontal sentada",note:"Espalda baja siempre apoyada",inc:5},{id:"belt-squat",n:"Sentadilla con cinturón (belt squat)",note:"Sin carga sobre la columna; exhala al subir",inc:5},{id:"bulgara",n:"Sentadilla búlgara con mancuernas",note:"Torso ligeramente inclinado",side:"pierna",inc:1,dbell:true}],
+  "curl-fem":[A_.curlFemTumbado,A_.curlFemPie,A_.curlFemPolea],
+  "hiperext":[A_.pullThrough,{id:"patada-gluteo",n:"Patada de glúteo en máquina o polea",side:"pierna",inc:2.5},{id:"ext-cadera-maq",n:"Extensión de cadera en máquina",inc:2.5}],
+  "ext-cuad":[A_.extCuadUni,A_.prensaPiesBajos,A_.sissy],
+  "abduccion":[{id:"abduccion-polea",n:"Abducción de cadera en polea, de pie",side:"pierna",inc:1},{id:"abduccion-banda",n:"Abducción sentado con banda",note:"Registra 0 kg y progresa con bandas más duras",inc:0}],
+  "talones-pie":[A_.talonesPrensa,{id:"talones-uni",n:"Elevación de talones a una pierna con mancuerna",side:"pierna",inc:1}],
+  "rodillas-paralelas":[{id:"rodillas-colgado",n:"Elevaciones de rodillas colgado de barra",note:"Exhala al subir; sin balanceo",inc:0},{id:"dead-bug",n:"Dead bug lento",note:"Exhala al extender; espalda baja pegada al suelo",side:"lado",inc:0}],
+  "press-incl-barra":[A_.pressInclMaq,{id:"press-incl-manc",n:"Press inclinado con mancuernas (30°)",inc:1,dbell:true},A_.pressInclSmith],
+  "dominadas":[A_.jalonNeutro,A_.jalonMaq,{id:"jalon-prono",n:"Jalón al pecho, agarre prono",inc:2.5}],
+  "remo-polea":[A_.remoPechoMaq,A_.remoMancIncl,A_.remoPoleaUni],
+  "aperturas":[{id:"cruce-poleas",n:"Cruce de poleas de pie",inc:2.5},{id:"aperturas-manc-incl",n:"Aperturas con mancuernas en banco inclinado bajo",note:"Nunca plano ni declinado",inc:1,dbell:true},A_.pressPechoPolea],
+  "lat-manc":[A_.latPolea,A_.latMaq,A_.yRaise],
+  "pajaros":[A_.facePull,A_.pajarosPolea,A_.pajarosMancIncl],
+  "curl-martillo":[{id:"martillo-cuerda",n:"Curl martillo en polea con cuerda",inc:2.5},{id:"martillo-cruzado",n:"Curl martillo cruzado",inc:1,dbell:true}],
+  "pushdown":[{id:"pushdown-cuerda",n:"Pushdown con cuerda",inc:2.5},A_.extTriMaq,{id:"ext-tri-cabeza",n:"Extensión de tríceps sobre la cabeza en polea",inc:2.5}],
+  "bulgara":[{id:"split-squat",n:"Zancada estática con mancuernas",side:"pierna",inc:1,dbell:true},{id:"zancada-atras",n:"Zancada hacia atrás con mancuernas",side:"pierna",inc:1,dbell:true},{id:"prensa-uni",n:"Prensa a una pierna",side:"pierna",inc:2.5}],
+  "hip-thrust":[{id:"hip-thrust-smith",n:"Hip thrust en Smith",inc:5},{id:"puente-maq",n:"Puente de glúteo en máquina",inc:5},A_.pullThrough],
+  "talones-sent":[A_.talonesPrensa,{id:"talones-sent-manc",n:"Elevación de talones sentado con mancuerna sobre las rodillas",inc:1}],
+  "woodchop":[{id:"rotacion-maq",n:"Rotación de torso en máquina",note:"Gira solo en el rango cómodo, sin impulso",inc:2.5},{id:"pallof",n:"Pallof press",note:"Resiste la rotación; exhala al extender los brazos",side:"lado",inc:2.5}],
+  "press-militar":[{id:"press-hombro-maq",n:"Press de hombro en máquina",inc:2.5},{id:"press-militar-smith",n:"Press militar en Smith, sentado con respaldo",inc:2.5},{id:"landmine",n:"Press landmine a una mano",note:"De pie o con una rodilla apoyada",side:"brazo",inc:2.5}],
+  "jalon-uni":[A_.jalonNeutro,{id:"pullover-polea",n:"Pullover en polea de pie",note:"Brazos casi rectos",inc:2.5},A_.remoPoleaUni],
+  "lat-maq":[A_.latPolea,A_.latManc,A_.yRaise],
+  "curl-bayes":[{id:"curl-predicador",n:"Curl predicador en máquina",inc:2.5},{id:"curl-incl",n:"Curl inclinado con mancuernas",inc:1,dbell:true},{id:"curl-polea-baja",n:"Curl en polea baja",inc:2.5}],
+  "side-bend":[{id:"crunch-lateral-polea",n:"Crunch lateral en polea alta",note:"Exhala al encoger el costado; sin encorvarte hacia adelante",side:"lado",inc:2.5},{id:"side-bend-manc",n:"Inclinación lateral con mancuerna",side:"lado",inc:1}]
+};
+function swapKey(day,slot){return day+":"+slot;}
+function altOf(slotId,altId){return (ALTS[slotId]||[]).find(a=>a.id===altId);}
+function swapChoice(day,slotId,dateS){
+  const ds=dateS?((Store.profile.dayswaps||{})[dateS]||{}):{};
+  let v=ds[swapKey(day,slotId)];
+  if(v===undefined)v=((Store.profile.settings||{}).swaps||{})[swapKey(day,slotId)];
+  return v&&v!=="orig"&&altOf(slotId,v)?v:null;
+}
+function buildEx(slot,a){
+  if(!a)return Object.assign({},slot,{slot:slot.id});
+  const note=[a.note,slot.keepNote?slot.note:null].filter(Boolean).join(". ");
+  return Object.assign({},slot,{id:a.id,n:a.n,note:note||undefined,inc:a.inc!=null?a.inc:slot.inc,dbell:!!a.dbell,repLabel:a.side?range(slot.r)+" por "+a.side:undefined,slot:slot.id,swapped:true,origN:slot.n});
+}
+function effEx(day,slot,dateS){const v=swapChoice(day,slot.id,dateS);return buildEx(slot,v?altOf(slot.id,v):null);}
+function dayEx(day,dateS){return DAYS[day].ex.map(s=>effEx(day,s,dateS));}
+function swapBtn(day,ex){return ALTS[ex.slot]?'<button type="button" class="btn secondary" style="min-height:34px;padding:4px 12px;font-size:14px;flex:none" data-action="swap" data-day="'+day+'" data-slot="'+ex.slot+'">Cambiar</button>':"";}
+
 const ORDER = ["A","PA","B","PB","C"];
 const WD_TO_DAY = {1:"A",2:"PA",4:"B",5:"PB",6:"C"};
-const ALL_EX = (()=>{const m={};ORDER.forEach(k=>DAYS[k].ex.forEach(e=>{if(!m[e.id])m[e.id]=e.n;}));return m;})();
+const ALL_EX = (()=>{const m={};ORDER.forEach(k=>DAYS[k].ex.forEach(e=>{if(!m[e.id])m[e.id]=e.n;}));Object.values(ALTS).forEach(l=>l.forEach(a=>{if(!m[a.id])m[a.id]=a.n;}));return m;})();
 
 const MEALS = [
   {t:"7:30",n:"Desayuno",d:"Avena 80 g cocida en 250 ml de leche descremada, 1 plátano (120 g) y 2 huevos revueltos",k:630,p:31,c:94,g:15},
@@ -312,13 +390,13 @@ const LS_P="entrenador.profile.v1", LS_W="entrenador.workouts.v1";
 function mergeProfile(r,l){
   const newer=(l.updated||0)>(r.updated||0)?l:r, older=newer===l?r:l;
   const out=Object.assign(defaultProfile(),JSON.parse(JSON.stringify(newer)));
-  ["body","food","health","cardio"].forEach(k=>{out[k]=Object.assign({},older[k]||{},newer[k]||{});});
+  ["body","food","health","cardio","dayswaps"].forEach(k=>{out[k]=Object.assign({},older[k]||{},newer[k]||{});});
   out.photos=[...new Set([...(r.photos||[]),...(l.photos||[])])].sort();
   out.settings=Object.assign(defaultProfile().settings,older.settings||{},newer.settings||{});
   out.updated=Math.max(r.updated||0,l.updated||0);
   return out;
 }
-function defaultProfile(){return {settings:{start:mondayOf(today()),fullCycle2:true},body:{},food:{},health:{},cardio:{},photos:[],updated:0};}
+function defaultProfile(){return {settings:{start:mondayOf(today()),fullCycle2:true},body:{},food:{},health:{},cardio:{},dayswaps:{},photos:[],updated:0};}
 const Store = {
   profile: defaultProfile(), workouts:{}, mode:"local", pRef:null, wCol:null, chains:{}, timers:{},
   loadLocal(){
@@ -445,7 +523,7 @@ function getWorkout(dateS,day,wi,create){
   const id=workoutId(dateS,day);
   if(!Store.workouts[id]&&create){
     const sets={};
-    DAYS[day].ex.forEach(ex=>{const c=coachFor(ex,dateS,wi);sets[ex.id]=Array.from({length:setsFor(ex,wi)},()=>({kg:c.kg!=null?c.kg:"",reps:"",rir:"",done:false}));});
+    dayEx(day,dateS).forEach(ex=>{const c=coachFor(ex,dateS,wi);sets[ex.id]=Array.from({length:setsFor(ex,wi)},()=>({kg:c.kg!=null?c.kg:"",reps:"",rir:"",done:false}));});
     Store.workouts[id]={date:dateS,day,cycle:wi.cycle,week:wi.week,sets,finished:false,updated:Date.now()};
   }
   return Store.workouts[id];
@@ -589,13 +667,13 @@ function renderSession(t,day,wi){
   if(!w){
     h+='<button type="button" class="btn block" style="margin-top:12px" data-action="start" data-day="'+day+'">Empezar '+DAYS[day].name+'</button>';
     h+='<div class="group" style="margin-top:12px">';
-    DAYS[day].ex.forEach(ex=>{h+='<div class="row"><div class="ex-name" style="font-size:16px">'+esc(ex.n)+'</div><div class="small">'+setsFor(ex,wi)+' series × '+esc(ex.repLabel||range(ex.r))+', RIR '+range(rirFor(ex,wi))+'</div></div>';});
+    dayEx(day,t).forEach(ex=>{h+='<div class="row" style="display:flex;gap:10px;align-items:center"><div class="grow"><div class="ex-name" style="font-size:16px">'+esc(ex.n)+'</div>'+(ex.swapped?'<div class="small">En lugar de: '+esc(ex.origN)+'</div>':'')+'<div class="small">'+setsFor(ex,wi)+' series × '+esc(ex.repLabel||range(ex.r))+', RIR '+range(rirFor(ex,wi))+'</div></div>'+swapBtn(day,ex)+'</div>';});
     return h+"</div>";
   }
-  DAYS[day].ex.forEach(ex=>{
+  dayEx(day,t).forEach(ex=>{
     const c=coachFor(ex,t,wi), sets=w.sets[ex.id]||[];
     const rr=rirFor(ex,wi);
-    h+='<section class="ex" aria-label="'+esc(ex.n)+'"><div class="ex-h"><div class="ex-name">'+esc(ex.n)+'</div>'+(ex.note?'<div class="small" style="margin-top:2px">'+esc(ex.note)+'</div>':"")+
+    h+='<section class="ex" aria-label="'+esc(ex.n)+'"><div class="ex-h"><div style="display:flex;gap:10px;align-items:flex-start"><div class="ex-name grow">'+esc(ex.n)+'</div>'+swapBtn(day,ex)+'</div>'+(ex.swapped?'<div class="small" style="margin-top:2px">En lugar de: '+esc(ex.origN)+'</div>':'')+(ex.note?'<div class="small" style="margin-top:2px">'+esc(ex.note)+'</div>':"")+
       '<div class="ex-meta"><span><b>'+sets.length+'</b> series</span><span><b>'+esc(ex.repLabel||range(ex.r))+'</b> reps</span><span>RIR <b>'+range(rr)+'</b></span><span>Descanso <b>'+restLabel(ex.rest)+'</b></span></div></div>'+
       '<div class="coach'+(c.up?" up":"")+'">'+esc(c.text)+'</div>'+
       '<div class="sets"><div class="set-head"><span>#</span><span>kg</span><span>reps</span><span>RIR</span><span></span></div>';
@@ -776,7 +854,7 @@ function renderSemana(){
   ORDER.forEach(k=>{
     const D=DAYS[k];
     h+='<h2>'+D.name+' <span class="small" style="font-family:var(--font);font-weight:500">('+["","lunes","martes","","jueves","viernes","sábado"][D.wd]+')</span></h2><div class="group">';
-    D.ex.forEach(ex=>{h+='<div class="row"><div style="font-weight:500">'+esc(ex.n)+'</div><div class="small">'+(wi.before?ex.s[0]:setsFor(ex,wi))+' series × '+esc(ex.repLabel||range(ex.r))+', RIR '+range(wi.before?ex.rir:rirFor(ex,wi))+', descanso '+restLabel(ex.rest).toLowerCase()+(ex.note?". "+esc(ex.note):"")+'</div></div>';});
+    D.ex.forEach(slot=>{const ex=effEx(k,slot,null);h+='<div class="row"><div style="font-weight:500">'+esc(ex.n)+'</div>'+(ex.swapped?'<div class="small">Cambio permanente, en lugar de: '+esc(ex.origN)+'</div>':'')+'<div class="small">'+(wi.before?ex.s[0]:setsFor(ex,wi))+' series × '+esc(ex.repLabel||range(ex.r))+', RIR '+range(wi.before?ex.rir:rirFor(ex,wi))+', descanso '+restLabel(ex.rest).toLowerCase()+(ex.note?". "+esc(ex.note):"")+'</div></div>';});
     h+='</div>';
   });
   const satInt=!!cardioPlan(addDays(m,5));
@@ -793,7 +871,7 @@ function renderGuia(){
   let h='<div class="top"><div><h1>Guía</h1></div></div><p class="sub">Las reglas de tu programa, en resumen. Los documentos completos están al final.</p>';
   h+='<div class="group">'+
   det("Cómo progresar",'<p><b>Doble progresión.</b> Trabaja dentro del rango de repeticiones con el RIR indicado. Cuando completes el tope del rango en todas las series, sube la carga lo mínimo posible y vuelve al extremo bajo del rango. La app te lo sugiere en cada ejercicio.</p><p><b>RIR</b> = repeticiones que te quedan en reserva (0 = fallo). Compuestos a 1–2, nunca al fallo; máquinas y aislamientos a 0–1.</p><p><b>Descansos:</b> mínimo 90 s; 2–3 min en compuestos.</p><p><b>Calentamiento:</b> 2–3 series ligeras antes del primer compuesto; no cuentan.</p>')+
-  det("Respiración y seguridad",'<p>Inhala al bajar, exhala durante el esfuerzo. Sin cinturón y sin pujar. Si necesitas aguantar el aire para terminar una repetición, la serie terminó.</p><p>Columna neutra, bajada controlada (≈ 2 s), sin rebotes. En la prensa, la pelvis siempre pegada al respaldo.</p><p>Al terminar: 3–5 min de respiración diafragmática, soltando abdomen y suelo pélvico.</p>')+
+  det("Respiración y seguridad",'<p>Si una máquina está ocupada o tu gimnasio no la tiene, usa el botón <b>Cambiar</b> de cada ejercicio: las alternativas ya están filtradas para tus condiciones.</p><p>Inhala al bajar, exhala durante el esfuerzo. Sin cinturón y sin pujar. Si necesitas aguantar el aire para terminar una repetición, la serie terminó.</p><p>Columna neutra, bajada controlada (≈ 2 s), sin rebotes. En la prensa, la pelvis siempre pegada al respaldo.</p><p>Al terminar: 3–5 min de respiración diafragmática, soltando abdomen y suelo pélvico.</p>')+
   det("Mesociclo de 6 semanas",'<div class="tbl"><table><tr><th>Semana</th><th>Series</th><th>RIR compuestos</th><th>RIR aislamientos</th></tr><tr><td>1</td><td>Inicial</td><td>2–3</td><td>1–2</td></tr><tr><td>2–3</td><td>Inicial</td><td>1–2</td><td>0–1</td></tr><tr><td>4</td><td>Completo</td><td>1–2</td><td>0–1</td></tr><tr><td>5</td><td>Completo</td><td>1–2</td><td>0</td></tr><tr><td>6</td><td>≈ 50 %, mismas cargas</td><td>3–4</td><td>2–3</td></tr></table></div><p class="small" style="margin-top:8px">En la semana 6, la pantalla Hoy te pregunta cómo empezar el siguiente ciclo y te deja alargar el bloque hasta 2 semanas si sigues progresando. Si tu rendimiento cae o marcas una señal de alerta, la app te ofrece adelantar la descarga.</p>')+
   det("Volumen semanal por músculo",'<div class="tbl"><table><tr><th>Músculo</th><th class="num">Sem. 1–3</th><th class="num">Sem. 4–5</th></tr>'+[["Espalda",12,15],["Bíceps",12,14.5],["Deltoides lateral",10.5,13.5],["Tríceps",11.5,13],["Glúteos",10,12],["Pecho",10,11],["Cuádriceps",10,11],["Isquiotibiales",8.5,10.5],["Deltoides posterior",6.5,8],["Pantorrillas",6,8],["Core (abdomen y oblicuos)",8,9]].map(r=>'<tr><td>'+r[0]+'</td><td class="num">'+fmtNum(r[1])+'</td><td class="num">'+fmtNum(r[2])+'</td></tr>').join("")+'</table></div><p class="small" style="margin-top:8px">Series fraccionales: las indirectas cuentan 0,5.</p>')+
   det("Señales de alerta",'<ul style="margin:0;padding-left:20px">'+SIGNS.map(s=>'<li>'+esc(s.t)+'</li>').join("")+'</ul><p class="small" style="margin-top:8px">Ante cualquiera: baja la carga en pierna y adelanta la descarga. Valoraciones recomendadas: urólogo (varicocele) y fisioterapeuta de suelo pélvico si hay síntomas urinarios. Dolor en el costado hacia la ingle o sangre en la orina: consulta de inmediato.</p>')+
@@ -809,6 +887,37 @@ function renderGuia(){
 }
 
 /* ---------- PANELES ---------- */
+function swapSheet(day,slotId){
+  const slot=DAYS[day].ex.find(s=>s.id===slotId);if(!slot)return;
+  const t=today(), cur=swapChoice(day,slotId,t)||slotId;
+  const perm=((Store.profile.settings||{}).swaps||{})[swapKey(day,slotId)];
+  const opts=[{id:slotId,n:slot.n,note:slot.note,orig:true}].concat(ALTS[slotId]||[]);
+  UI.swapAlways=false;
+  openSheet('<h2 style="margin-top:4px">Cambiar ejercicio</h2><p class="small">Todas las opciones trabajan el mismo músculo y son compatibles con tus condiciones. Se mantienen las series, repeticiones y descansos; cada ejercicio guarda su propio historial de cargas.</p>'+
+    '<div class="group">'+opts.map(o=>'<button type="button" class="row" style="display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:'+(o.id===cur?"var(--primary-soft)":"var(--surface)")+'" data-action="swap-pick" data-day="'+day+'" data-slot="'+slotId+'" data-alt="'+(o.orig?"orig":o.id)+'"><div style="font-weight:600">'+esc(o.n)+(o.orig?' <span class="pill">del programa</span>':'')+(o.id===cur?' <span class="pill ok">actual</span>':'')+'</div>'+(o.note?'<div class="small">'+esc(o.note)+'</div>':'')+'</button>').join("")+'</div>'+
+    '<div class="group" style="margin-top:12px"><div class="row toggle"><div class="grow"><div style="font-weight:500">Usar siempre</div><div class="small">Actívalo si tu gimnasio no tiene el equipo. Si lo dejas apagado, el cambio es solo para hoy.'+(perm?' Ahora mismo hay un cambio permanente en este ejercicio.':'')+'</div></div><button type="button" class="switch" role="switch" aria-checked="false" aria-label="Usar siempre" data-action="swap-always"></button></div></div>');
+}
+function applySwap(day,slotId,alt,always){
+  const t=today(),wi=weekInfo(t),key=swapKey(day,slotId);
+  const slot=DAYS[day].ex.find(s=>s.id===slotId);if(!slot)return;
+  const before=effEx(day,slot,t);
+  const st=Store.profile.settings;st.swaps=st.swaps||{};
+  const dsAll=Store.profile.dayswaps||(Store.profile.dayswaps={});
+  if(always){if(alt==="orig")delete st.swaps[key];else st.swaps[key]=alt;if(dsAll[t])delete dsAll[t][key];}
+  else{(dsAll[t]||(dsAll[t]={}))[key]=alt;}
+  const after=effEx(day,slot,t);
+  const wid=workoutId(t,day), w=Store.workouts[wid];
+  let kept=0;
+  if(w&&before.id!==after.id){
+    const old=w.sets[before.id]||[];kept=old.filter(s=>s.done).length;
+    if(!kept)delete w.sets[before.id];
+    if(!w.sets[after.id]){const c=coachFor(after,t,wi);w.sets[after.id]=Array.from({length:Math.max(1,setsFor(slot,wi)-kept)},()=>({kg:c.kg!=null?c.kg:"",reps:"",rir:"",done:false}));}
+    Store.touchWorkout(wid);
+  }
+  Store.touchProfile();closeSheet();render();
+  toast((after.swapped?"Cambiado a "+after.n+(always?" (siempre)":" (solo hoy)"):"De vuelta al ejercicio del programa"+(always?" (siempre)":""))+(kept?". Tus "+kept+" series hechas quedan guardadas":""));
+}
+
 function openSheet(html){$("#sheetIn").innerHTML=html;$("#scrim").classList.add("show");$("#sheet").classList.add("show");}
 function closeSheet(){$("#scrim").classList.remove("show");$("#sheet").classList.remove("show");}
 function healthSheet(){
@@ -870,6 +979,9 @@ document.addEventListener("click",async e=>{
   if(act==="timer-add")return Timer.add(15);
   if(act==="timer-stop"){if(Guided.active){Guided.next();return;}return Timer.stop();}
   if(act==="guided-stop"){Guided.end(false);return;}
+  if(act==="swap"){swapSheet(a.dataset.day,a.dataset.slot);return;}
+  if(act==="swap-always"){UI.swapAlways=!UI.swapAlways;a.setAttribute("aria-checked",String(UI.swapAlways));return;}
+  if(act==="swap-pick"){applySwap(a.dataset.day,a.dataset.slot,a.dataset.alt,!!UI.swapAlways);return;}
   if(act==="guided"){Timer.ensureAudio();Guided.start(+a.dataset.reps);return;}
   if(act==="cardio-mod"){const all=cardioAll();const r=all[a.dataset.date]||(all[a.dataset.date]={});r.mod=a.dataset.mod;Store.touchProfile();render();return;}
   if(act==="cardio-done"){
@@ -908,7 +1020,7 @@ document.addEventListener("click",async e=>{
     closeSheet();render();toast("Datos borrados");return;
   }
 });
-function findEx(day,id){return (DAYS[day]?DAYS[day].ex:[]).find(e=>e.id===id);}
+function findEx(day,id){for(const s of (DAYS[day]?DAYS[day].ex:[])){if(s.id===id)return buildEx(s,null);const a=altOf(s.id,id);if(a)return buildEx(s,a);}return null;}
 document.addEventListener("input",e=>{
   const t=e.target;
   if(t.dataset.input){
